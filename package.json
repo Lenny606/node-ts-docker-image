@@ -5,10 +5,15 @@
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
+    "docker-start": "npm run migrate && npm run start",
+    "migrate": "prisma migrate deploy",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

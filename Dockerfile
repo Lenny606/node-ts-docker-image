@@ -1,36 +1,41 @@
-# Build stage
-FROM node:20-slim AS builder
-
+FROM node:22-alpine AS builder #builder is first stage
+#update pckage manager + install shared libs
+RUN apk update
+RUN apk add --no-cache libc6-compat
+# set working directory + copy files
 WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci
-
-# Copy source code
 COPY . .
-
-# Build TypeScript code
+RUN npm install
 RUN npm run build
 
-# Production stage
-FROM node:20-slim
-
+# 2nd stage
+FROM node:22-alpine AS installer
+RUN apk update
+RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache openssl #needs orm forexmaple
 WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install production dependencies only
-RUN npm ci --only=production
-
-# Copy built files from builder stage
+# copy files from builder stage
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
+COPY --from=builder /app/prisma ./prisma 
 COPY --from=builder /app/dist ./dist
 
-# Expose port
-EXPOSE 3000
+# clean install takes lock, remove modules if exists, no dev dependencies
+RUN npm ci --omit=dev
+# RUN npm run prisma:generate  
 
-# Start the server
-CMD ["npm", "start"] 
+
+#3rd stage
+FROM node:22-alpine AS runner
+RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache openssl
+WORKDIR /app
+# dont run prod as root, create non root user
+RUN addgroup --system --gid 1001 expressjs
+RUN adduser --system --uid 1001 expressjs
+USER expressjs
+# copy from installer stage
+COPY --from=installer /app .
+
+# start the script in package.json
+CMD ["npm", "run", "docker-start"]
